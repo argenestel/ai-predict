@@ -4,84 +4,104 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract SimplePredictionMarketplace is Ownable {
+    enum PredictionStatus { ACTIVE, FINALIZED, CANCELLED }
+
     struct Prediction {
         string description;
         uint256 endTime;
-        bool isResolved;
-        uint256 totalPoolYes;
-        uint256 totalPoolNo;
-        mapping(address => uint256) yesVotes;
-        mapping(address => uint256) noVotes;
-        bool outcome;
+        PredictionStatus status;
+        uint256[] totalPools;
+        uint256 outcome;
+        uint256 minimumBet;
+        uint256 maximumBet;
+        uint256 optionsCount;
     }
 
     mapping(uint256 => Prediction) public predictions;
+    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public userBets;
     uint256 public predictionCounter;
 
-    event PredictionCreated(uint256 indexed predictionId, string description, uint256 endTime);
-    event BetPlaced(uint256 indexed predictionId, address indexed user, bool choice, uint256 amount);
-    event PredictionResolved(uint256 indexed predictionId, bool outcome);
-    event RewardsDistributed(uint256 indexed predictionId);
+    event PredictionCreated(uint256 indexed predictionId, string description, uint256 endTime, uint256 optionsCount);
+    event BetPlaced(uint256 indexed predictionId, address indexed user, uint256 option, uint256 amount);
+    event PredictionFinalized(uint256 indexed predictionId, uint256 outcome);
+    event PredictionCancelled(uint256 indexed predictionId);
 
     constructor() Ownable(msg.sender) {}
 
-    function createPrediction(string memory _description, uint256 _duration) external onlyOwner {
-        uint256 predictionId = predictionCounter;
+    function createPrediction(
+        string memory _description,
+        uint256 _duration,
+        uint256 _minimumBet,
+        uint256 _maximumBet,
+        uint256 _optionsCount
+    ) external onlyOwner {
+        require(_optionsCount >= 2, "Must have at least 2 options");
+        uint256 predictionId = predictionCounter++;
+
         Prediction storage newPrediction = predictions[predictionId];
-        
         newPrediction.description = _description;
         newPrediction.endTime = block.timestamp + _duration;
-        newPrediction.isResolved = false;
+        newPrediction.status = PredictionStatus.ACTIVE;
+        newPrediction.minimumBet = _minimumBet;
+        newPrediction.maximumBet = _maximumBet;
+        newPrediction.optionsCount = _optionsCount;
 
-        emit PredictionCreated(predictionId, _description, newPrediction.endTime);
-        
-        predictionCounter++;
-    }
-
-    function placeBet(uint256 _predictionId, bool _choice) external payable {
-        Prediction storage prediction = predictions[_predictionId];
-        require(!prediction.isResolved, "Prediction is already resolved");
-        require(block.timestamp < prediction.endTime, "Prediction has ended");
-
-        if (_choice) {
-            prediction.yesVotes[msg.sender] += msg.value;
-            prediction.totalPoolYes += msg.value;
-        } else {
-            prediction.noVotes[msg.sender] += msg.value;
-            prediction.totalPoolNo += msg.value;
+        for (uint256 i = 0; i < _optionsCount; i++) {
+            newPrediction.totalPools.push(0);
         }
 
-        emit BetPlaced(_predictionId, msg.sender, _choice, msg.value);
+        emit PredictionCreated(predictionId, _description, newPrediction.endTime, _optionsCount);
     }
 
-    function resolvePrediction(uint256 _predictionId, bool _outcome) external onlyOwner {
+    function placeBet(uint256 _predictionId, uint256 _option) external payable {
         Prediction storage prediction = predictions[_predictionId];
-        require(!prediction.isResolved, "Prediction is already resolved");
-        require(block.timestamp >= prediction.endTime, "Prediction has not ended yet");
+        require(prediction.status == PredictionStatus.ACTIVE, "Prediction is not active");
+        require(block.timestamp < prediction.endTime, "Prediction has ended");
+        require(_option < prediction.optionsCount, "Invalid option");
+        require(msg.value >= prediction.minimumBet && msg.value <= prediction.maximumBet, "Bet amount out of range");
 
-        prediction.isResolved = true;
+        prediction.totalPools[_option] += msg.value;
+        userBets[_predictionId][msg.sender][_option] += msg.value;
+
+        emit BetPlaced(_predictionId, msg.sender, _option, msg.value);
+    }
+
+    function finalizePrediction(uint256 _predictionId, uint256 _outcome) external onlyOwner {
+        Prediction storage prediction = predictions[_predictionId];
+        require(prediction.status == PredictionStatus.ACTIVE, "Prediction is not active");
+        require(block.timestamp >= prediction.endTime, "Prediction has not ended yet");
+        require(_outcome < prediction.optionsCount, "Invalid outcome");
+
+        prediction.status = PredictionStatus.FINALIZED;
         prediction.outcome = _outcome;
 
-        emit PredictionResolved(_predictionId, _outcome);
+        emit PredictionFinalized(_predictionId, _outcome);
+    }
+
+    function cancelPrediction(uint256 _predictionId) external onlyOwner {
+        Prediction storage prediction = predictions[_predictionId];
+        require(prediction.status == PredictionStatus.ACTIVE, "Prediction is not active");
+
+        prediction.status = PredictionStatus.CANCELLED;
+
+        emit PredictionCancelled(_predictionId);
     }
 
     function claimReward(uint256 _predictionId) external {
         Prediction storage prediction = predictions[_predictionId];
-        require(prediction.isResolved, "Prediction is not resolved yet");
+        require(prediction.status == PredictionStatus.FINALIZED, "Prediction is not finalized");
 
-        uint256 userBet = prediction.outcome ? prediction.yesVotes[msg.sender] : prediction.noVotes[msg.sender];
+        uint256 userBet = userBets[_predictionId][msg.sender][prediction.outcome];
         require(userBet > 0, "No winning bet found");
 
-        uint256 totalWinningPool = prediction.outcome ? prediction.totalPoolYes : prediction.totalPoolNo;
-        uint256 totalPool = prediction.totalPoolYes + prediction.totalPoolNo;
+        uint256 totalWinningPool = prediction.totalPools[prediction.outcome];
+        uint256 totalPool = 0;
+        for (uint256 i = 0; i < prediction.optionsCount; i++) {
+            totalPool += prediction.totalPools[i];
+        }
 
         uint256 reward = (userBet * totalPool) / totalWinningPool;
-
-        if (prediction.outcome) {
-            prediction.yesVotes[msg.sender] = 0;
-        } else {
-            prediction.noVotes[msg.sender] = 0;
-        }
+        userBets[_predictionId][msg.sender][prediction.outcome] = 0;
 
         payable(msg.sender).transfer(reward);
     }
@@ -89,24 +109,27 @@ contract SimplePredictionMarketplace is Ownable {
     function getPredictionDetails(uint256 _predictionId) external view returns (
         string memory description,
         uint256 endTime,
-        bool isResolved,
-        uint256 totalPoolYes,
-        uint256 totalPoolNo,
-        bool outcome
+        PredictionStatus status,
+        uint256[] memory totalPools,
+        uint256 outcome,
+        uint256 minimumBet,
+        uint256 maximumBet,
+        uint256 optionsCount
     ) {
         Prediction storage prediction = predictions[_predictionId];
         return (
             prediction.description,
             prediction.endTime,
-            prediction.isResolved,
-            prediction.totalPoolYes,
-            prediction.totalPoolNo,
-            prediction.outcome
+            prediction.status,
+            prediction.totalPools,
+            prediction.outcome,
+            prediction.minimumBet,
+            prediction.maximumBet,
+            prediction.optionsCount
         );
     }
 
-    function getUserBet(uint256 _predictionId, address _user) external view returns (uint256 yesBet, uint256 noBet) {
-        Prediction storage prediction = predictions[_predictionId];
-        return (prediction.yesVotes[_user], prediction.noVotes[_user]);
+    function getUserBet(uint256 _predictionId, address _user, uint256 _option) external view returns (uint256) {
+        return userBets[_predictionId][_user][_option];
     }
 }
