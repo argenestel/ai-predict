@@ -64,7 +64,7 @@ const NavBar = ({ isMobile }) => {
       className="fixed top-0 left-0 right-0 bg-white/10 backdrop-blur-xl p-2 shadow-lg dark:bg-[#0b14374d] z-50"
     >
       <div className="flex justify-between items-center">
-        <span className="text-white font-bold text-xl">#PredictAI</span>
+        <span className="text-white font-bold text-xl"></span>
         <div className="flex items-center space-x-2">
           <DynamicWidget />
           <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="text-white">
@@ -89,7 +89,7 @@ const NavBar = ({ isMobile }) => {
       >
         <div className={`flex ${isMobile ? 'justify-around' : 'justify-between'} items-center`}>
           {!isMobile && (
-            <span className="text-white font-bold text-xl">#Predict.AI</span>
+            <span className="text-white font-bold text-xl">HashPredict</span>
           )}
           <div className={`flex ${isMobile ? 'justify-around w-full' : 'space-x-4'}`}>
             {navItems.map((item) => (
