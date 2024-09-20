@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract SimplePredictionMarketplace is Ownable {
+contract PredictionMarketplace is Ownable {
     enum PredictionStatus { ACTIVE, FINALIZED, CANCELLED }
 
     struct Prediction {
@@ -15,16 +15,22 @@ contract SimplePredictionMarketplace is Ownable {
         uint256 minimumBet;
         uint256 maximumBet;
         uint256 optionsCount;
+        uint256 totalVotes;
     }
 
     mapping(uint256 => Prediction) public predictions;
     mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public userBets;
+    mapping(uint256 => mapping(address => bool)) public userVotes;
+    mapping(string => bool) public validTags;
     uint256 public predictionCounter;
 
     event PredictionCreated(uint256 indexed predictionId, string description, uint256 endTime, uint256 optionsCount);
     event BetPlaced(uint256 indexed predictionId, address indexed user, uint256 option, uint256 amount);
     event PredictionFinalized(uint256 indexed predictionId, uint256 outcome);
     event PredictionCancelled(uint256 indexed predictionId);
+    event TagAdded(string tag);
+    event TagRemoved(string tag);
+    event VoteCast(uint256 indexed predictionId, address indexed voter);
 
     constructor() Ownable(msg.sender) {}
 
@@ -49,6 +55,7 @@ contract SimplePredictionMarketplace is Ownable {
         for (uint256 i = 0; i < _optionsCount; i++) {
             newPrediction.totalPools.push(0);
         }
+
 
         emit PredictionCreated(predictionId, _description, newPrediction.endTime, _optionsCount);
     }
@@ -106,6 +113,29 @@ contract SimplePredictionMarketplace is Ownable {
         payable(msg.sender).transfer(reward);
     }
 
+    function addValidTag(string memory _tag) external onlyOwner {
+        require(!validTags[_tag], "Tag already exists");
+        validTags[_tag] = true;
+        emit TagAdded(_tag);
+    }
+
+    function removeValidTag(string memory _tag) external onlyOwner {
+        require(validTags[_tag], "Tag does not exist");
+        validTags[_tag] = false;
+        emit TagRemoved(_tag);
+    }
+
+    function vote(uint256 _predictionId) external {
+        Prediction storage prediction = predictions[_predictionId];
+        require(prediction.status == PredictionStatus.ACTIVE, "Prediction is not active");
+        require(!userVotes[_predictionId][msg.sender], "User has already voted");
+
+        userVotes[_predictionId][msg.sender] = true;
+        prediction.totalVotes++;
+
+        emit VoteCast(_predictionId, msg.sender);
+    }
+
     function getPredictionDetails(uint256 _predictionId) external view returns (
         string memory description,
         uint256 endTime,
@@ -114,7 +144,8 @@ contract SimplePredictionMarketplace is Ownable {
         uint256 outcome,
         uint256 minimumBet,
         uint256 maximumBet,
-        uint256 optionsCount
+        uint256 optionsCount,
+        uint256 totalVotes
     ) {
         Prediction storage prediction = predictions[_predictionId];
         return (
@@ -125,11 +156,16 @@ contract SimplePredictionMarketplace is Ownable {
             prediction.outcome,
             prediction.minimumBet,
             prediction.maximumBet,
-            prediction.optionsCount
+            prediction.optionsCount,
+            prediction.totalVotes
         );
     }
 
     function getUserBet(uint256 _predictionId, address _user, uint256 _option) external view returns (uint256) {
         return userBets[_predictionId][_user][_option];
+    }
+
+    function hasUserVoted(uint256 _predictionId, address _user) external view returns (bool) {
+        return userVotes[_predictionId][_user];
     }
 }
