@@ -4,6 +4,7 @@ import { IoAdd, IoRemove, IoTimeOutline, IoWalletOutline, IoTrailSign, IoCheckma
 import { useReadContract, useWriteContract, useAccount } from 'wagmi';
 import { parseEther } from 'viem';
 import { morphHolesky } from 'viem/chains';
+import axios from 'axios';
 
 interface PredictionCardProps {
   predictionId: bigint;
@@ -28,6 +29,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOracle, setIsOracle] = useState(false);
   const [outcome, setOutcome] = useState<number>(0);
+  const [isAIFinalizing, setIsAIFinalizing] = useState(false);
   const { data: prediction, isLoading } = usePredictionDetails(predictionId);
   const { address } = useAccount();
   const { writeContract } = useWriteContract();
@@ -46,7 +48,6 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
     args: [ORACLE_ROLE, address as `0x${string}`],
   });
 
-
   const [isPredictionEnded, setIsPredictionEnded] = useState(false);
 
   useEffect(() => {
@@ -61,17 +62,15 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
     try {
       let finalOutcome;
       if (useAI) {
-        // Call your AI finalization endpoint here
-        // For example:
-        // const aiResponse = await fetch('/api/finalize-with-ai', { 
-        //   method: 'POST', 
-        //   body: JSON.stringify({ predictionId: predictionId.toString() })
-        // });
-        // const aiResult = await aiResponse.json();
-        // finalOutcome = aiResult.outcome;
-        
-        // For now, we'll just use a random outcome
-        finalOutcome = Math.random() < 0.5 ? 0 : 1;
+        setIsAIFinalizing(true);
+        try {
+          const response = await axios.post(`https://ai-predict-fcdw.onrender.com/finalize-prediction/${predictionId}`);
+          finalOutcome = response.data.outcome;
+        } catch (error) {
+          console.error('Error finalizing with AI:', error);
+          setIsAIFinalizing(false);
+          return;
+        }
       } else {
         finalOutcome = outcome;
       }
@@ -88,9 +87,10 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
       console.log(`Prediction finalized ${useAI ? 'with AI' : 'by admin'}`);
     } catch (error) {
       console.error('Error finalizing prediction:', error);
+    } finally {
+      setIsAIFinalizing(false);
     }
   };
-
 
   useEffect(() => {
     setIsAdmin(!!hasAdminRole);
@@ -103,22 +103,6 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
   const handlePredict = () => {
     onPredict(Number(predictionId), isYesSelected, shareAmount);
   };
-
-  // const handleFinalize = async () => {
-  //   if (!address) return;
-  //   try {
-  //     await writeContract({
-  //       address: contractAddress,
-  //       abi: abi,
-  //       functionName: 'finalizePrediction',
-  //       args: [predictionId, BigInt(outcome)],
-  //       chain: morphHolesky,
-  //       account: address
-  //     });
-  //   } catch (error) {
-  //     console.error('Error finalizing prediction:', error);
-  //   }
-  // };
 
   const handleCancel = async () => {
     if (!address) return;
@@ -245,7 +229,6 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
 
         <div className="text-xs text-gray-500 dark:text-gray-400">
           <p>Min Votes: {Number(minVotes)}</p>
-          {/* <p>Max Votes: {Number(maxVotes)}</p> */}
           <p>Creator: {creator.slice(0, 6)}...{creator.slice(-4)}</p>
           <p>Created: {formatTime(creationTime)}</p>
           <p>Status: {isActive ? 'Active' : isFinalized ? 'Finalized' : 'Cancelled'}</p>
@@ -317,7 +300,8 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
           </motion.button>
         </div>
       )}
- {isAdmin && isActive && isPredictionEnded && (
+
+      {isAdmin && isActive && isPredictionEnded && (
         <div className="p-4 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
           <div className="flex flex-col space-y-2">
             <div className="flex items-center space-x-2 mb-2">
@@ -342,13 +326,24 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => handleFinalize(true)}
+              disabled={isAIFinalizing}
               className="w-full bg-purple-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center justify-center"
             >
-              <IoBulb className="mr-1" /> Finalize with AI
+              {isAIFinalizing ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Finalizing with AI...
+                </>
+              ) : (
+                <>
+                  <IoBulb className="mr-1" /> Finalize with AI
+                </>
+              )}
             </motion.button>
           </div>
         </div>
       )}
+
       {(isAdmin || isOracle) && isActive && (
         <div className="p-4 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
           <div className="flex flex-col space-y-2">
@@ -365,7 +360,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
                 <motion.button 
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => {handleFinalize}}
+                  onClick={() => handleFinalize(false)}
                   className="bg-blue-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center"
                 >
                   <IoCheckmark className="mr-1" /> Finalize
@@ -373,41 +368,41 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
               </div>
             )}
             {isAdmin && (
-            <motion.button 
+              <motion.button 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleCancel}
+                className="bg-red-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center justify-center"
+              >
+                <IoClose className="mr-1" /> Cancel Prediction
+              </motion.button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isAdmin && isFinalized && (
+        <div className="p-4 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
+          <motion.button 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={handleCancel}
-            className="bg-red-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center justify-center"
+            onClick={handleDistributeRewards}
+            className="w-full bg-green-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center justify-center"
           >
-            <IoClose className="mr-1" /> Cancel Prediction
+            <IoCash className="mr-1" /> Distribute Rewards
           </motion.button>
-        )}
-      </div>
-    </div>
-  )}
+        </div>
+      )}
 
-  {isAdmin && isFinalized && (
-    <div className="p-4 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
-      <motion.button 
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={handleDistributeRewards}
-        className="w-full bg-green-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center justify-center"
-      >
-        <IoCash className="mr-1" /> Distribute Rewards
-      </motion.button>
+      {(isFinalized || isCancelled) && !isAdmin && (
+        <div className="p-4 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
+          <div className="text-center text-sm font-medium text-gray-600 dark:text-gray-400">
+            {isFinalized ? 'This prediction has been finalized.' : 'This prediction has been cancelled.'}
+          </div>
+        </div>
+      )}
     </div>
-  )}
-
-  {(isFinalized || isCancelled) && !isAdmin && (
-    <div className="p-4 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
-      <div className="text-center text-sm font-medium text-gray-600 dark:text-gray-400">
-        {isFinalized ? 'This prediction has been finalized.' : 'This prediction has been cancelled.'}
-      </div>
-    </div>
-  )}
-</div>
-);
+  );
 };
 
 export default PredictionCard;

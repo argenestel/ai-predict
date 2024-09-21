@@ -188,36 +188,8 @@ app.post("/generate-predictions", async (req, res) => {
     }
 });
 
-app.post("/finalize-prediction/:id", async (req, res) => {
-    try {
-        const predictionId = req.params.id;
-        const prediction = await contract.getPredictionDetails(predictionId);
-        const [description] = prediction;
 
-        console.log(`Finalizing prediction ${predictionId}: ${description}`);
-
-        const currentData = await getPerplexityData(description);
-        const outcome = await determineOutcome(description, currentData);
-
-        console.log(`Determined outcome for prediction ${predictionId}:`, outcome);
-
-        const tx = await contract.finalizePrediction(predictionId, outcome);
-        await tx.wait();
-
-        console.log(`Finalized prediction ${predictionId} with transaction hash:`, tx.hash);
-
-        res.json({ 
-            message: `Prediction ${predictionId} finalized successfully`,
-            outcome: outcome,
-            transactionHash: tx.hash
-        });
-    } catch (error) {
-        console.error("Error in finalize-prediction endpoint:", error);
-        res.status(500).json({ error: error.message, stack: error.stack });
-    }
-});
-
-async function determineOutcome(description, currentData) {
+const determineOutcome = async (description, currentData) => {
     try {
         const prompt = `
 Analyze the following prediction and the most recent related information to determine its outcome:
@@ -253,19 +225,60 @@ Your response:
         });
 
         const fullResponse = response.choices[0].message.content.trim();
-        const [outcome, confidence, explanation] = fullResponse.split('\n');
+        const [outcome, confidence, ...explanationParts] = fullResponse.split('\n');
         
+        if (!outcome || !confidence) {
+            throw new Error("Invalid AI response format");
+        }
+
         return {
             outcome: parseInt(outcome),
             confidence: parseFloat(confidence),
-            explanation: explanation.trim()
+            explanation: explanationParts.join(' ').trim() || "No explanation provided"
         };
     } catch (error) {
         console.error("Error determining outcome:", error);
         throw new Error("Failed to determine outcome: " + error.message);
     }
-}
+};
 
+app.post("/finalize-prediction/:id", async (req, res) => {
+    try {
+        const predictionId = req.params.id;
+        const prediction = await contract.getPredictionDetails(predictionId);
+        const [description] = prediction;
+
+        console.log(`Finalizing prediction ${predictionId}: ${description}`);
+
+        const currentData = await getPerplexityData(description);
+        let outcome;
+        try {
+            outcome = await determineOutcome(description, currentData);
+        } catch (error) {
+            console.error(`Error determining outcome for prediction ${predictionId}:`, error);
+            return res.status(500).json({ error: "Failed to determine outcome", details: error.message });
+        }
+
+        console.log(`Determined outcome for prediction ${predictionId}:`, outcome);
+
+        try {
+            const tx = await contract.finalizePrediction(predictionId, outcome.outcome);
+            await tx.wait();
+            console.log(`Finalized prediction ${predictionId} with transaction hash:`, tx.hash);
+            res.json({ 
+                message: `Prediction ${predictionId} finalized successfully`,
+                outcome: outcome,
+                transactionHash: tx.hash
+            });
+        } catch (error) {
+            console.error(`Error finalizing prediction ${predictionId} on the blockchain:`, error);
+            res.status(500).json({ error: "Failed to finalize prediction on the blockchain", details: error.message });
+        }
+    } catch (error) {
+        console.error("Error in finalize-prediction endpoint:", error);
+        res.status(500).json({ error: error.message, stack: error.stack });
+    }
+});
 // Update the test finalize prediction endpoint
 app.post("/test/finalize-prediction", async (req, res) => {
     try {
