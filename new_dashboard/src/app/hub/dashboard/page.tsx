@@ -297,9 +297,11 @@ const Dashboard = () => {
                   onChange={(e) => setNewPrediction({...newPrediction, predictionType: e.target.value})}
                   className="w-full p-2 border rounded dark:bg-navy-700 dark:text-white dark:border-navy-600"
                 >
-                  <option value="0">Binary</option>
+                  <option  value="0">Binary</option>
                   <option value="1">Multiple Choice</option>
                   <option value="2">Range</option>
+                  <option value="3">Financial</option>
+
                 </select>
                 <input
                   type="number"

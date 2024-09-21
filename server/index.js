@@ -30,6 +30,99 @@ const contractAddress = process.env.CONTRACT_ADDRESS;
 const contract = new ethers.Contract(contractAddress, contractABI, wallet);
 let currentNonce = null;
 
+const PRICE_FEED_IDS = {
+    'BTC/USD': '0xe62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43',
+    'BNB/USD': '0x2f95862b045670cd22bee3114c39763a4a08beeb663b145d283c31d7d1101c4f',
+    'SOL/USD': '0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d',
+    'ETH/USD': '0xff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace',
+};
+
+
+async function fetchPythPrice(priceFeedId) {
+    try {
+        const response = await axios.get('https://hermes.pyth.network/api/latest_price_feeds', {
+            params: {
+                ids: [priceFeedId]
+            }
+        });
+
+        if (response.data && response.data.length > 0) {
+            const priceFeed = response.data[0];
+            
+            // Convert price and confidence to human-readable format
+            const price = parseFloat(priceFeed.price.price) * Math.pow(10, priceFeed.price.expo);
+            const confidence = parseFloat(priceFeed.price.conf) * Math.pow(10, priceFeed.price.expo);
+            
+            return {
+                id: priceFeed.id,
+                price: price.toFixed(2),
+                confidence: confidence.toFixed(2),
+                publishTime: new Date(priceFeed.price.publish_time * 1000).toISOString()
+            };
+        } else {
+            throw new Error("Price feed not found");
+        }
+    } catch (error) {
+        console.error("Error fetching Pyth price:", error);
+        throw error;
+    }
+}
+
+// Endpoint for BTC/USD price
+app.get("/pyth-price/btc-usd", async (req, res) => {
+    try {
+        const priceData = await fetchPythPrice(PRICE_FEED_IDS['BTC/USD']);
+        res.json(priceData);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch BTC/USD price", details: error.message });
+    }
+});
+
+// Endpoint for BNB/USD price
+app.get("/pyth-price/bnb-usd", async (req, res) => {
+    try {
+        const priceData = await fetchPythPrice(PRICE_FEED_IDS['BNB/USD']);
+        res.json(priceData);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch BNB/USD price", details: error.message });
+    }
+});
+
+
+app.get("/pyth-price/eth-usd", async (req, res) => {
+    try {
+        const priceData = await fetchPythPrice(PRICE_FEED_IDS['ETH/USD']);
+        res.json(priceData);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch BNB/USD price", details: error.message });
+    }
+});
+
+// Endpoint for SOL/USD price
+app.get("/pyth-price/sol-usd", async (req, res) => {
+    try {
+        const priceData = await fetchPythPrice(PRICE_FEED_IDS['SOL/USD']);
+        res.json(priceData);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch SOL/USD price", details: error.message });
+    }
+});
+
+// Endpoint to fetch all prices
+app.get("/pyth-price/all", async (req, res) => {
+    try {
+        const prices = {};
+        for (const [pair, id] of Object.entries(PRICE_FEED_IDS)) {
+            prices[pair] = await fetchPythPrice(id);
+        }
+        res.json(prices);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch prices", details: error.message });
+    }
+});
+
+
+
 async function getPerplexityData(query) {
     try {
         const response = await axios.post('https://api.perplexity.ai/chat/completions', {
