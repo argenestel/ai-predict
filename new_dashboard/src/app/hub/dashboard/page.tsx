@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useReadContract, useWriteContract, useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IoAdd, IoClose, IoDownload, IoLink, IoRefresh, IoBulb } from 'react-icons/io5';
+import { IoAdd, IoClose, IoDownload, IoLink, IoRefresh, IoBulb,IoWater } from 'react-icons/io5';
 import PredictionCard from 'components/card/PredictionCard';
 import { abi } from '../../../abi';
 import { parseEther } from 'viem';
@@ -49,6 +49,24 @@ const Dashboard = () => {
   const { isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash: undefined,
   });
+
+
+  const handleRequestFunds = async () => {
+    if (!isConnected || !address) {
+      console.error('Wallet not connected');
+      return;
+    }
+
+    try {
+      const response = await axios.post('https://ai-predict-fcdw.onrender.com/request-eth', { address });
+      console.log('Funds requested:', response.data);
+      // You might want to show a success message to the user here
+    } catch (error) {
+      console.error('Error requesting funds:', error);
+      // You might want to show an error message to the user here
+    }
+  };
+
 
   useEffect(() => {
     if (predictionCount) {
@@ -177,27 +195,40 @@ const Dashboard = () => {
   return (
     <div className="p-4 md:p-6 lg:p-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-navy-700 dark:text-white">Prediction Dashboard</h1>
-        {isPredictorRole && (
-          <div className="flex space-x-2">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setIsModalOpen(true)}
-              className="bg-brand-500 text-white rounded-lg py-2 px-4 flex items-center"
-            >
-              <IoAdd className="mr-2" /> Create Prediction
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setIsGeneratePopupOpen(true)}
-              className="bg-purple-500 text-white rounded-lg py-2 px-4 flex items-center"
-            >
-              <IoBulb className="mr-2" /> Generate AI Predictions
-            </motion.button>
-          </div>
-        )}
+
+      <div className="flex flex-col space-y-4 mb-6">
+  <h1 className="text-2xl font-bold text-navy-700 dark:text-white">Prediction Dashboard</h1>
+  <div className="flex flex-wrap gap-2">
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={handleRequestFunds}
+      className="bg-blue-400 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-1 sm:flex-none"
+    >
+      <IoWater className="mr-1" /> Request Funds
+    </motion.button>
+    {isPredictorRole && (
+      <>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsModalOpen(true)}
+          className="bg-brand-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-1 sm:flex-none"
+        >
+          <IoAdd className="mr-1" /> Create
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsGeneratePopupOpen(true)}
+          className="bg-purple-500 text-white rounded-lg py-2 px-3 text-sm flex items-center justify-center flex-1 sm:flex-none"
+        >
+          <IoBulb className="mr-1" /> Generate
+        </motion.button>
+      </>
+    )}
+  </div>
+</div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {predictionIds.map((id) => (
