@@ -1,27 +1,109 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { IoAdd, IoRemove, IoTimeOutline, IoWalletOutline, IoTrailSign } from 'react-icons/io5';
+import { IoAdd, IoRemove, IoTimeOutline, IoWalletOutline, IoTrailSign, IoCheckmark, IoClose, IoCash } from 'react-icons/io5';
+import { useReadContract, useWriteContract, useAccount } from 'wagmi';
+import { parseEther } from 'viem';
+import { morphHolesky } from 'viem/chains';
 
 interface PredictionCardProps {
   predictionId: bigint;
   usePredictionDetails: (id: bigint) => any;
   onPredict: (id: number, isYes: boolean, amount: number) => void;
+  contractAddress: `0x${string}`;
+  abi: any;
 }
+
+const ADMIN_ROLE = '0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775';
+const ORACLE_ROLE = '0x68e79a7bf1e0bc45d0a330c573bc37be4d8f69e2c52ed8096fdddca5aaefaa0c';
 
 const PredictionCard: React.FC<PredictionCardProps> = ({ 
   predictionId, 
   usePredictionDetails, 
   onPredict,
+  contractAddress,
+  abi
 }) => {
   const [shareAmount, setShareAmount] = useState(1);
   const [isYesSelected, setIsYesSelected] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isOracle, setIsOracle] = useState(false);
+  const [outcome, setOutcome] = useState<number>(0);
   const { data: prediction, isLoading } = usePredictionDetails(predictionId);
+  const { address } = useAccount();
+  const { writeContract } = useWriteContract();
+
+  const { data: hasAdminRole } = useReadContract({
+    address: contractAddress,
+    abi: abi,
+    functionName: 'hasRole',
+    args: [ADMIN_ROLE, address as `0x${string}`],
+  });
+
+  const { data: hasOracleRole } = useReadContract({
+    address: contractAddress,
+    abi: abi,
+    functionName: 'hasRole',
+    args: [ORACLE_ROLE, address as `0x${string}`],
+  });
+
+  useEffect(() => {
+    setIsAdmin(!!hasAdminRole);
+    setIsOracle(!!hasOracleRole);
+  }, [hasAdminRole, hasOracleRole]);
 
   const handleIncrement = () => setShareAmount(prev => prev + 1);
   const handleDecrement = () => setShareAmount(prev => Math.max(1, prev - 1));
 
   const handlePredict = () => {
     onPredict(Number(predictionId), isYesSelected, shareAmount);
+  };
+
+  const handleFinalize = async () => {
+    if (!address) return;
+    try {
+      await writeContract({
+        address: contractAddress,
+        abi: abi,
+        functionName: 'finalizePrediction',
+        args: [predictionId, BigInt(outcome)],
+        chain: morphHolesky,
+        account: address
+      });
+    } catch (error) {
+      console.error('Error finalizing prediction:', error);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!address) return;
+    try {
+      await writeContract({
+        address: contractAddress,
+        abi: abi,
+        functionName: 'cancelPrediction',
+        args: [predictionId],
+        chain: morphHolesky,
+        account: address
+      });
+    } catch (error) {
+      console.error('Error cancelling prediction:', error);
+    }
+  };
+
+  const handleDistributeRewards = async () => {
+    if (!address) return;
+    try {
+      await writeContract({
+        address: contractAddress,
+        abi: abi,
+        functionName: 'distributeRewards',
+        args: [predictionId],
+        chain: morphHolesky,
+        account: address
+      });
+    } catch (error) {
+      console.error('Error distributing rewards:', error);
+    }
   };
 
   const formatTime = (timestamp: bigint) => {
@@ -60,7 +142,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
     return null;
   }
 
-  const [description, endTime, status, totalVotes, outcome, minVotes, maxVotes, predictionType, creator, creationTime, tags, optionsCount, totalBetAmount] = prediction;
+  const [description, endTime, status, totalVotes, predictionOutcome, minVotes, maxVotes, predictionType, creator, creationTime, tags, optionsCount, totalBetAmount] = prediction;
 
   const yesVotes = totalVotes[0] ? Number(totalVotes[0]) : 0;
   const noVotes = totalVotes[1] ? Number(totalVotes[1]) : 0;
@@ -70,6 +152,8 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
   const noPercentage = calculatePercentage(BigInt(noVotes), BigInt(totalVotesCount));
 
   const isActive = status === 0;
+  const isFinalized = status === 1;
+  const isCancelled = status === 2;
   const totalEth = Number(totalBetAmount) / 1e18; // Convert from Wei to ETH
 
   return (
@@ -118,6 +202,8 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
           <p>Max Votes: {Number(maxVotes)}</p>
           <p>Creator: {creator.slice(0, 6)}...{creator.slice(-4)}</p>
           <p>Created: {formatTime(creationTime)}</p>
+          <p>Status: {isActive ? 'Active' : isFinalized ? 'Finalized' : 'Cancelled'}</p>
+          {isFinalized && <p>Outcome: {Number(predictionOutcome) === 0 ? 'Yes' : 'No'}</p>}
         </div>
       </div>
 
@@ -185,8 +271,66 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
           </motion.button>
         </div>
       )}
+
+      {(isAdmin || isOracle) && isActive && (
+        <div className="p-4 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
+          <div className="flex flex-col space-y-2">
+            {isOracle && (
+              <div className="flex items-center space-x-2 mb-2">
+                <select 
+                  value={outcome}
+                  onChange={(e) => setOutcome(parseInt(e.target.value))}
+                  className="flex-grow p-2 border rounded dark:bg-navy-700 dark:border-navy-600"
+                >
+                  <option value={0}>Yes</option>
+                  <option value={1}>No</option>
+                </select>
+                <motion.button 
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleFinalize}
+                  className="bg-blue-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center"
+                >
+                  <IoCheckmark className="mr-1" /> Finalize
+                </motion.button>
+              </div>
+            )}
+            {isAdmin && (
+            <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleCancel}
+            className="bg-red-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center justify-center"
+          >
+            <IoClose className="mr-1" /> Cancel Prediction
+          </motion.button>
+        )}
+      </div>
     </div>
-  );
+  )}
+
+  {isAdmin && isFinalized && (
+    <div className="p-4 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
+      <motion.button 
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={handleDistributeRewards}
+        className="w-full bg-green-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center justify-center"
+      >
+        <IoCash className="mr-1" /> Distribute Rewards
+      </motion.button>
+    </div>
+  )}
+
+  {(isFinalized || isCancelled) && !isAdmin && (
+    <div className="p-4 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
+      <div className="text-center text-sm font-medium text-gray-600 dark:text-gray-400">
+        {isFinalized ? 'This prediction has been finalized.' : 'This prediction has been cancelled.'}
+      </div>
+    </div>
+  )}
+</div>
+);
 };
 
 export default PredictionCard;

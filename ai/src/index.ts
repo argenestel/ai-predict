@@ -50,7 +50,74 @@ async function answerQuestion(
 }
 
 async function generatePredictions(data: string, apiKey: string): Promise<string[]> {
-	const prompt = `Based on the following prediction market data, generate 5 new, creative prediction questions that are related to the themes present in the data but not exact duplicates. Each question should be specific, measurable, and have a clear timeframe. Here's the data:
+	const prompt = `Based on the following prediction market data, generate 5 new, creative prediction questions that are related to the themes present in the data but not exact duplicates. Each question should be specific, measurable, and have a clear timeframe. The Current Year is 2024 I will Provide more Date specific Info Always create Farther  then the Current Time Also Output in Json Format Given as .{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Create Prediction Parameters",
+  "type": "object",
+  "properties": {
+    "description": {
+      "type": "string",
+      "description": "A detailed description of the prediction"
+    },
+    "duration": {
+      "type": "integer",
+      "description": "The duration of the prediction in seconds",
+      "minimum": 1
+    },
+    "minVotes": {
+      "type": "integer",
+      "description": "The minimum number of votes required",
+      "minimum": 1
+    },
+    "maxVotes": {
+      "type": "integer",
+      "description": "The maximum number of votes allowed",
+      "minimum": 1
+    },
+    "predictionType": {
+      "type": "integer",
+      "enum": [0, 1, 2],
+      "description": "The type of prediction (0: Binary, 1: Multiple Choice, 2: Range)"
+    },
+    "optionsCount": {
+      "type": "integer",
+      "description": "The number of options for the prediction",
+      "minimum": 2,
+      "maximum": 10
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "An array of tags associated with the prediction"
+    }
+  },
+  "required": [
+    "description",
+    "duration",
+    "minVotes",
+    "maxVotes",
+    "predictionType",
+    "optionsCount",
+    "tags"
+  ],
+  "additionalProperties": false
+}
+To create 
+
+const predictionParams = {
+  description: "Will it rain tomorrow in New York City?",
+  duration: 86400, // 24 hours in seconds
+  minVotes: 10,
+  maxVotes: 1000,
+  predictionType: 0, // Binary (Yes/No)
+  optionsCount: 2,
+  tags: ["weather", "NYC", "rain"]
+};
+
+
+Here's the data:
 
 ${data}
 
