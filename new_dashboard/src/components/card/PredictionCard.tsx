@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { IoAdd, IoRemove, IoTimeOutline, IoWalletOutline, IoTrailSign, IoCheckmark, IoClose, IoCash } from 'react-icons/io5';
+import { IoAdd, IoRemove, IoTimeOutline, IoWalletOutline, IoTrailSign, IoCheckmark, IoClose, IoCash, IoBulb } from 'react-icons/io5';
 import { useReadContract, useWriteContract, useAccount } from 'wagmi';
 import { parseEther } from 'viem';
 import { morphHolesky } from 'viem/chains';
@@ -46,6 +46,52 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
     args: [ORACLE_ROLE, address as `0x${string}`],
   });
 
+
+  const [isPredictionEnded, setIsPredictionEnded] = useState(false);
+
+  useEffect(() => {
+    if (prediction) {
+      const [, endTime] = prediction;
+      setIsPredictionEnded(Date.now() / 1000 > Number(endTime));
+    }
+  }, [prediction]);
+
+  const handleFinalize = async (useAI = false) => {
+    if (!address) return;
+    try {
+      let finalOutcome;
+      if (useAI) {
+        // Call your AI finalization endpoint here
+        // For example:
+        // const aiResponse = await fetch('/api/finalize-with-ai', { 
+        //   method: 'POST', 
+        //   body: JSON.stringify({ predictionId: predictionId.toString() })
+        // });
+        // const aiResult = await aiResponse.json();
+        // finalOutcome = aiResult.outcome;
+        
+        // For now, we'll just use a random outcome
+        finalOutcome = Math.random() < 0.5 ? 0 : 1;
+      } else {
+        finalOutcome = outcome;
+      }
+
+      await writeContract({
+        address: contractAddress,
+        abi: abi,
+        functionName: 'finalizePrediction',
+        args: [predictionId, BigInt(finalOutcome)],
+        chain: morphHolesky,
+        account: address
+      });
+      
+      console.log(`Prediction finalized ${useAI ? 'with AI' : 'by admin'}`);
+    } catch (error) {
+      console.error('Error finalizing prediction:', error);
+    }
+  };
+
+
   useEffect(() => {
     setIsAdmin(!!hasAdminRole);
     setIsOracle(!!hasOracleRole);
@@ -58,21 +104,21 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
     onPredict(Number(predictionId), isYesSelected, shareAmount);
   };
 
-  const handleFinalize = async () => {
-    if (!address) return;
-    try {
-      await writeContract({
-        address: contractAddress,
-        abi: abi,
-        functionName: 'finalizePrediction',
-        args: [predictionId, BigInt(outcome)],
-        chain: morphHolesky,
-        account: address
-      });
-    } catch (error) {
-      console.error('Error finalizing prediction:', error);
-    }
-  };
+  // const handleFinalize = async () => {
+  //   if (!address) return;
+  //   try {
+  //     await writeContract({
+  //       address: contractAddress,
+  //       abi: abi,
+  //       functionName: 'finalizePrediction',
+  //       args: [predictionId, BigInt(outcome)],
+  //       chain: morphHolesky,
+  //       account: address
+  //     });
+  //   } catch (error) {
+  //     console.error('Error finalizing prediction:', error);
+  //   }
+  // };
 
   const handleCancel = async () => {
     if (!address) return;
@@ -199,7 +245,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
 
         <div className="text-xs text-gray-500 dark:text-gray-400">
           <p>Min Votes: {Number(minVotes)}</p>
-          <p>Max Votes: {Number(maxVotes)}</p>
+          {/* <p>Max Votes: {Number(maxVotes)}</p> */}
           <p>Creator: {creator.slice(0, 6)}...{creator.slice(-4)}</p>
           <p>Created: {formatTime(creationTime)}</p>
           <p>Status: {isActive ? 'Active' : isFinalized ? 'Finalized' : 'Cancelled'}</p>
@@ -271,7 +317,38 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
           </motion.button>
         </div>
       )}
-
+ {isAdmin && isActive && isPredictionEnded && (
+        <div className="p-4 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
+          <div className="flex flex-col space-y-2">
+            <div className="flex items-center space-x-2 mb-2">
+              <select 
+                value={outcome}
+                onChange={(e) => setOutcome(parseInt(e.target.value))}
+                className="flex-grow p-2 border rounded dark:bg-navy-700 dark:border-navy-600"
+              >
+                <option value={0}>Yes</option>
+                <option value={1}>No</option>
+              </select>
+              <motion.button 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleFinalize(false)}
+                className="bg-blue-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center"
+              >
+                <IoCheckmark className="mr-1" /> Admin Finalize
+              </motion.button>
+            </div>
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleFinalize(true)}
+              className="w-full bg-purple-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center justify-center"
+            >
+              <IoBulb className="mr-1" /> Finalize with AI
+            </motion.button>
+          </div>
+        </div>
+      )}
       {(isAdmin || isOracle) && isActive && (
         <div className="p-4 bg-gray-50 dark:bg-navy-900 border-t border-gray-200 dark:border-navy-700">
           <div className="flex flex-col space-y-2">
@@ -288,7 +365,7 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
                 <motion.button 
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={handleFinalize}
+                  onClick={() => {handleFinalize}}
                   className="bg-blue-500 text-white rounded-lg py-2 px-4 text-sm font-medium flex items-center"
                 >
                   <IoCheckmark className="mr-1" /> Finalize

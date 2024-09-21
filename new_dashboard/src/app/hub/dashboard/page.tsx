@@ -8,6 +8,7 @@ import { abi } from '../../../abi';
 import { parseEther } from 'viem';
 import { morphHolesky } from 'viem/chains';
 import axios from 'axios';
+import FinancialPredictionCard from 'components/card/FinancialCard';
 
 const contractAddress = '0x779d7026FA2100C97AE5E2e8381f6506D5Bf31D4' as const;
 const PREDICTOR_ROLE = '0xfe9eaad5f5acc86dfc672d62b2c2acc0fccbdc369951a11924b882e2c44ed506';
@@ -191,6 +192,32 @@ const Dashboard: React.FC = () => {
         )}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <FinancialPredictionCard
+  pair="BTC/USD"
+  currentPrice={30000.50}
+  endTime={Date.now() + 60000} // 60 seconds from now
+  onPredict={(isUp) => {
+    // Handle the prediction
+    console.log(isUp ? "Predicted Up" : "Predicted Down");
+  }}
+  totalBetAmount={1.5} // 1.5 ETH
+  upVotes={75}
+  downVotes={25}
+  tags={["Crypto", "Bitcoin", "Short-term"]}
+/>
+<FinancialPredictionCard
+  pair="BTC/USD"
+  currentPrice={30000.50}
+  endTime={Date.now() + 60000} // 60 seconds from now
+  onPredict={(isUp) => {
+    // Handle the prediction
+    console.log(isUp ? "Predicted Up" : "Predicted Down");
+  }}
+  totalBetAmount={1.5} // 1.5 ETH
+  upVotes={75}
+  downVotes={25}
+  tags={["Crypto", "Bitcoin", "Short-term"]}
+/>
         {predictionIds.map((id) => (
           <PredictionCard
             key={Number(id)}
