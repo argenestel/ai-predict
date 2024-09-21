@@ -227,13 +227,17 @@ Prediction: "${description}"
 Current Information:
 ${currentData}
 
-Based on this data, has the prediction come true? Respond with:
-- 0 if the prediction is false or has not occurred
-- 1 if the prediction is true or has occurred
+Based on this data, has the prediction come true? Respond in the following format:
+1. A single digit: 0 if the prediction is false or has not occurred, 1 if it is true or has occurred.
+2. A confidence score between 0 and 1 (e.g., 0.8 for 80% confidence).
+3. A brief explanation (max 50 words) of your reasoning.
 
-If the information is insufficient to make a definitive determination, lean towards 0 (false).
+Example response:
+1
+0.9
+Bitcoin has surpassed $50,000 on multiple major exchanges according to current market data, meeting the prediction criteria with high confidence.
 
-Provide your reasoning, then on a new line, give ONLY the numeric outcome (0 or 1).
+Your response:
 `;
         
         const response = await openai.chat.completions.create({
@@ -241,7 +245,7 @@ Provide your reasoning, then on a new line, give ONLY the numeric outcome (0 or 
             messages: [
                 { 
                     role: "system", 
-                    content: "You are an impartial judge tasked with determining the outcomes of prediction markets based on the most current and relevant information available."
+                    content: "You are an impartial judge tasked with determining the outcomes of prediction markets based on the most current and relevant information available. Provide concise and accurate assessments."
                 },
                 { role: "user", content: prompt }
             ],
@@ -249,20 +253,46 @@ Provide your reasoning, then on a new line, give ONLY the numeric outcome (0 or 
         });
 
         const fullResponse = response.choices[0].message.content.trim();
-        const lines = fullResponse.split('\n');
-        const outcome = parseInt(lines[lines.length - 1]);
+        const [outcome, confidence, explanation] = fullResponse.split('\n');
         
-        if (isNaN(outcome) || (outcome !== 0 && outcome !== 1)) {
-            throw new Error("Invalid outcome determined by AI");
-        }
-
-        return outcome;
+        return {
+            outcome: parseInt(outcome),
+            confidence: parseFloat(confidence),
+            explanation: explanation.trim()
+        };
     } catch (error) {
         console.error("Error determining outcome:", error);
         throw new Error("Failed to determine outcome: " + error.message);
     }
 }
 
+// Update the test finalize prediction endpoint
+app.post("/test/finalize-prediction", async (req, res) => {
+    try {
+        const { description } = req.body;
+        if (!description) {
+            return res.status(400).json({ error: "Prediction description is required" });
+        }
+
+        console.log(`Test finalizing prediction: ${description}`);
+
+        const currentData = await getPerplexityData(description);
+        const { outcome, confidence, explanation } = await determineOutcome(description, currentData);
+
+        console.log(`Test determined outcome for prediction:`, outcome);
+
+        res.json({ 
+            message: `Test prediction finalized successfully`,
+            description: description,
+            outcome: outcome,
+            confidence: confidence,
+            explanation: explanation
+        });
+    } catch (error) {
+        console.error("Error in test finalize-prediction endpoint:", error);
+        res.status(500).json({ error: error.message, stack: error.stack });
+    }
+});
 app.get("/prediction/:id", async (req, res) => {
     try {
         const predictionId = req.params.id;
@@ -293,32 +323,7 @@ app.post("/test/generate-predictions", async (req, res) => {
     }
 });
 
-// New testing endpoint for finalizing predictions without blockchain interaction
-app.post("/test/finalize-prediction", async (req, res) => {
-    try {
-        const { description } = req.body;
-        if (!description) {
-            return res.status(400).json({ error: "Prediction description is required" });
-        }
 
-        console.log(`Test finalizing prediction: ${description}`);
-
-        const currentData = await getPerplexityData(description);
-        const outcome = await determineOutcome(description, currentData);
-
-        console.log(`Test determined outcome for prediction:`, outcome);
-
-        res.json({ 
-            message: `Test prediction finalized successfully`,
-            description: description,
-            outcome: outcome,
-            currentData: currentData
-        });
-    } catch (error) {
-        console.error("Error in test finalize-prediction endpoint:", error);
-        res.status(500).json({ error: error.message, stack: error.stack });
-    }
-});
 
 
 app.get("/user-stats/:address", async (req, res) => {
