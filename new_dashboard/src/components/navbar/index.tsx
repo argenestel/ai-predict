@@ -89,7 +89,7 @@ const NavBar = ({ isMobile }) => {
       >
         <div className={`flex ${isMobile ? 'justify-around' : 'justify-between'} items-center`}>
           {!isMobile && (
-            <span className="text-white font-bold text-xl">HashPredict</span>
+            <span className="text-white font-bold text-xl">#Predict.AI</span>
           )}
           <div className={`flex ${isMobile ? 'justify-around w-full' : 'space-x-4'}`}>
             {navItems.map((item) => (
@@ -156,7 +156,7 @@ const NavBar = ({ isMobile }) => {
             exit={{ scale: 0.9, opacity: 0 }}
             className="bg-white/10 backdrop-blur-xl rounded-2xl p-6 max-w-sm w-full shadow-lg dark:bg-[#0b14374d]"
           >
-            <h2 className="text-xl font-bold mb-4 text-white">Welcome to HashPredict!</h2>
+            <h2 className="text-xl font-bold mb-4 text-white">Welcome to #Predict.AI!</h2>
             <p className="text-gray-300 mb-4">Let's quickly go through the main features of our prediction marketplace:</p>
             <ul className="list-disc pl-6 space-y-2 text-gray-300 mb-6">
               <li>Leaders: See top performers</li>

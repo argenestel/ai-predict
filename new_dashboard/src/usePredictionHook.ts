@@ -289,6 +289,15 @@ export const usePredictionMarketplace = () => {
     });
   }, [writeContract]);
 
+  const hasRole = useCallback((account: `0x${string}`, role: string) => {
+    return useReadContract({
+      address: CONTRACT_ADDRESS,
+      abi,
+      functionName: 'hasRole',
+      args: [role, account],
+    });
+  }, []);
+
   return {
     // Read functions
     predictionCounter,
@@ -310,7 +319,7 @@ export const usePredictionMarketplace = () => {
     withdrawFees,
     addValidTag,
     removeValidTag,
-
+    hasRole,
     // Role management functions
     grantPredictorRole,
     revokePredictorRole,
