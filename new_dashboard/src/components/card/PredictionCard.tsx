@@ -1,32 +1,22 @@
 import React, { useState } from 'react';
-import { IoAdd, IoRemove, IoTimeOutline, IoWalletOutline, IoChevronUpOutline, IoChevronDownOutline, IoEllipsisHorizontal } from 'react-icons/io5';
-import { motion, AnimatePresence } from 'framer-motion';
-import LineAreaChart from 'components/charts/LineAreaChart';
-import { lineChartOptionsTotalSpent } from 'variables/charts';
+import { motion } from 'framer-motion';
+import { IoAdd, IoRemove, IoTimeOutline, IoWalletOutline } from 'react-icons/io5';
 
 interface PredictionCardProps {
   predictionId: bigint;
   getPredictionDetails: (id: number) => Promise<any>;
   onPredict: (id: number, isYes: boolean, amount: number) => void;
-  onFinalize: (id: number, outcome: number) => void;
-  onCancel: (id: number) => void;
-  onDistributeRewards: (id: number) => void;
   prediction: any;
 }
 
 const PredictionCard: React.FC<PredictionCardProps> = ({ 
   predictionId, 
   getPredictionDetails, 
-  onPredict, 
-  onFinalize, 
-  onCancel, 
-  onDistributeRewards,
+  onPredict,
   prediction
 }) => {
   const [shareAmount, setShareAmount] = useState(1);
   const [isYesSelected, setIsYesSelected] = useState(true);
-  const [isInfoExpanded, setIsInfoExpanded] = useState(false);
-  const [isTitleExpanded, setIsTitleExpanded] = useState(false);
 
   if (!prediction) {
     return <div className="w-full p-4 text-center">Loading prediction data...</div>;
@@ -65,50 +55,16 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
   const isActive = prediction[2] === 0;
   const totalEth = (yesVotes + noVotes) / 1e18; // Convert from Wei to ETH
 
-  const formatEth = (value: bigint) => {
-    return (Number(value) / 1e18).toFixed(6); // Convert from Wei to ETH and display 6 decimal places
-  };
-
-  const chartData = [
-    {
-      name: 'Yes Votes',
-      data: [yesVotes],
-    },
-    {
-      name: 'No Votes',
-      data: [noVotes],
-    },
-  ];
-
   const title = prediction[0] || 'No description available';
-  const isTitleLong = title.length > 50;
 
   return (
     <div className="w-full bg-white dark:bg-navy-800 rounded-xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl border border-gray-200 dark:border-navy-700">
       <div className="p-3 sm:p-4 md:p-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 sm:mb-4">
-          <div className="w-full sm:w-3/4 mb-2 sm:mb-0">
-            {isTitleLong ? (
-              <div className="relative">
-                <h2 className={`text-base sm:text-lg md:text-xl font-bold text-navy-700 dark:text-white ${isTitleExpanded ? '' : 'truncate'}`}>
-                  {title}
-                </h2>
-                {!isTitleExpanded && (
-                  <button
-                    onClick={() => setIsTitleExpanded(true)}
-                    className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-white dark:bg-navy-800 text-gray-600 dark:text-gray-400"
-                  >
-                    <IoEllipsisHorizontal />
-                  </button>
-                )}
-              </div>
-            ) : (
-              <h2 className="text-base sm:text-lg md:text-xl font-bold text-navy-700 dark:text-white">
-                {title}
-              </h2>
-            )}
-          </div>
-          <div className="flex items-center space-x-2 sm:space-x-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400 w-full sm:w-auto justify-between sm:justify-start">
+          <h2 className="text-base sm:text-lg md:text-xl font-bold text-navy-700 dark:text-white mb-2 sm:mb-0">
+            {title}
+          </h2>
+          <div className="flex items-center space-x-2 sm:space-x-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
             <div className="flex items-center">
               <IoTimeOutline className="mr-1" />
               <span>{formatTime(prediction[1])}</span>
@@ -197,73 +153,6 @@ const PredictionCard: React.FC<PredictionCardProps> = ({
             </motion.button>
           </div>
         )}
-
-        <motion.button
-          onClick={() => setIsInfoExpanded(!isInfoExpanded)}
-          className="w-full py-2 bg-gray-100 dark:bg-navy-700 text-gray-700 dark:text-gray-300 rounded-lg flex items-center justify-center text-xs sm:text-sm"
-        >
-          <span className="mr-1">{isInfoExpanded ? 'Hide' : 'Show'} Details</span>
-          {isInfoExpanded ? <IoChevronUpOutline size={12} /> : <IoChevronDownOutline size={12} />}
-        </motion.button>
-
-        <AnimatePresence>
-          {isInfoExpanded && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className="mt-3 sm:mt-4 overflow-hidden"
-            >
-              <div className="grid grid-cols-3 gap-2 mb-3 sm:mb-4 text-xs sm:text-sm">
-                <div className="bg-gray-50 dark:bg-navy-900 p-2 rounded-lg">
-                  <p className="text-gray-600 dark:text-gray-400 mb-1">Minimum Bet</p>
-                  <p className="font-semibold text-navy-700 dark:text-white">{formatEth(prediction[5])} ETH</p>
-                </div>
-                <div className="bg-gray-50 dark:bg-navy-900 p-2 rounded-lg">
-                  <p className="text-gray-600 dark:text-gray-400 mb-1">Maximum Bet</p>
-                  <p className="font-semibold text-navy-700 dark:text-white">{formatEth(prediction[6])} ETH</p>
-                </div>
-                <div className="bg-gray-50 dark:bg-navy-900 p-2 rounded-lg">
-                  <p className="text-gray-600 dark:text-gray-400 mb-1">Total Votes</p>
-                  <p className="font-semibold text-navy-700 dark:text-white">{totalVotes}</p>
-                </div>
-              </div>
-
-              <div className="h-32 sm:h-48 mb-3 sm:mb-4">
-                <LineAreaChart chartData={chartData} chartOptions={lineChartOptionsTotalSpent} />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Admin functions */}
-        <div className="mt-3 sm:mt-4 flex flex-wrap gap-2">
-          <button 
-            onClick={() => onFinalize(Number(predictionId), 0)} 
-            className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 sm:px-3 py-1 rounded text-xs"
-          >
-            Finalize Yes
-          </button>
-          <button 
-            onClick={() => onFinalize(Number(predictionId), 1)} 
-            className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 sm:px-3 py-1 rounded text-xs"
-          >
-            Finalize No
-          </button>
-          <button 
-            onClick={() => onCancel(Number(predictionId))} 
-            className="bg-red-500 hover:bg-red-600 text-white px-2 sm:px-3 py-1 rounded text-xs"
-          >
-            Cancel
-          </button>
-          <button 
-            onClick={() => onDistributeRewards(Number(predictionId))} 
-            className="bg-green-500 hover:bg-green-600 text-white px-2 sm:px-3 py-1 rounded text-xs"
-          >
-            Distribute Rewards
-          </button>
-        </div>
       </div>
     </div>
   );
