@@ -20,6 +20,7 @@ import {
 import { DynamicWagmiConnector } from "@dynamic-labs/wagmi-connector";
 import {
   createConfig,
+  useAccount,
   WagmiProvider,
 } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -68,7 +69,6 @@ export default function Admin({ children }: { children: React.ReactNode }) {
                     <div className="mx-auto min-h-screen p-2 !pt-[10px] md:p-2">
                       {children}
                     </div>
-
                   </div>
                 </main>
               </div>

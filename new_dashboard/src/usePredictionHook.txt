@@ -48,6 +48,8 @@ type UserStats = {
 };
 
 export const usePredictionMarketplace = () => {
+  const { address } = useAccount();
+
   // Read functions
   const { data: predictionCounter, refetch: refetchPredictionCounter } = useReadContract({
     address: CONTRACT_ADDRESS,
@@ -55,65 +57,64 @@ export const usePredictionMarketplace = () => {
     functionName: 'predictionCounter',
   });
 
-  const getPredictionDetails = useCallback((predictionId: bigint) => {
+  const getPredictionDetails = (predictionId: bigint) => {
     return useReadContract({
       address: CONTRACT_ADDRESS,
       abi,
       functionName: 'getPredictionDetails',
       args: [predictionId],
     });
-  }, []);
+  };
 
-  const getUserStats = useCallback((userAddress: `0x${string}`) => {
+  const getUserStats = (userAddress: `0x${string}`) => {
     return useReadContract({
       address: CONTRACT_ADDRESS,
       abi,
       functionName: 'getUserStats',
       args: [userAddress],
     });
-  }, []);
+  };
 
-  const getLuckiestUsers = useCallback((limit: bigint) => {
+  const getLuckiestUsers = (limit: bigint) => {
     return useReadContract({
       address: CONTRACT_ADDRESS,
       abi,
       functionName: 'getLuckiestUsers',
       args: [limit],
     });
-  }, []);
+  };
 
-  const getUserVotes = useCallback((predictionId: bigint, userAddress: `0x${string}`) => {
+  const getUserVotes = (predictionId: bigint, userAddress: `0x${string}`) => {
     return useReadContract({
       address: CONTRACT_ADDRESS,
       abi,
       functionName: 'getUserVotes',
       args: [predictionId, userAddress],
     });
-  }, []);
+  };
 
-  const hasUserParticipated = useCallback((predictionId: bigint, userAddress: `0x${string}`) => {
+  const hasUserParticipated = (predictionId: bigint, userAddress: `0x${string}`) => {
     return useReadContract({
       address: CONTRACT_ADDRESS,
       abi,
       functionName: 'hasUserParticipated',
       args: [predictionId, userAddress],
     });
-  }, []);
+  };
 
-  const calculatePotentialWinnings = useCallback((predictionId: bigint, option: bigint, votes: bigint) => {
+  const calculatePotentialWinnings = (predictionId: bigint, option: bigint, votes: bigint) => {
     return useReadContract({
       address: CONTRACT_ADDRESS,
       abi,
       functionName: 'calculatePotentialWinnings',
       args: [predictionId, option, votes],
     });
-  }, []);
+  };
 
   // Write functions
   const { writeContract } = useWriteContract();
-  const { address } = useAccount();
 
-  const createPrediction = useCallback((
+  const createPrediction = (
     description: string,
     duration: bigint,
     minVotes: bigint,
@@ -130,9 +131,9 @@ export const usePredictionMarketplace = () => {
         chain: morphHolesky,
         account: address as `0x${string}`
     });
-  }, [writeContract]);
+  }
 
-  const placeVotes = useCallback((predictionId: bigint, option: bigint, votes: bigint) => {
+  const placeVotes = (predictionId: bigint, option: bigint, votes: bigint) => {
     const value = parseEther((Number(votes) * 0.001).toString());
     return writeContract({
         address: CONTRACT_ADDRESS,
@@ -143,9 +144,9 @@ export const usePredictionMarketplace = () => {
         chain: morphHolesky,
         account: address as `0x${string}`
     });
-  }, [writeContract]);
+  }
 
-  const partialWithdraw = useCallback((predictionId: bigint, votes: bigint) => {
+  const partialWithdraw = (predictionId: bigint, votes: bigint) => {
     return writeContract({
         address: CONTRACT_ADDRESS,
         abi,
@@ -154,9 +155,9 @@ export const usePredictionMarketplace = () => {
         chain: morphHolesky,
         account: address as `0x${string}`
     });
-  }, [writeContract]);
+  }
 
-  const finalizePrediction = useCallback((predictionId: bigint, outcome: bigint) => {
+  const finalizePrediction = (predictionId: bigint, outcome: bigint) => {
     return writeContract({
         address: CONTRACT_ADDRESS,
         abi,
@@ -165,9 +166,9 @@ export const usePredictionMarketplace = () => {
         chain: morphHolesky,
         account: address as `0x${string}`
     });
-  }, [writeContract]);
+  }
 
-  const distributeRewards = useCallback((predictionId: bigint) => {
+  const distributeRewards =(predictionId: bigint) => {
     return writeContract({
         address: CONTRACT_ADDRESS,
         abi,
@@ -176,9 +177,9 @@ export const usePredictionMarketplace = () => {
         chain: morphHolesky,
         account: address as `0x${string}`
     });
-  }, [writeContract]);
+  }
 
-  const cancelPrediction = useCallback((predictionId: bigint) => {
+  const cancelPrediction = (predictionId: bigint) => {
     return writeContract({
         address: CONTRACT_ADDRESS,
         abi,
@@ -187,9 +188,9 @@ export const usePredictionMarketplace = () => {
         chain: morphHolesky,
         account: address as `0x${string}`
     });
-  }, [writeContract]);
+  }
 
-  const withdrawFees = useCallback((to: `0x${string}`, amount: bigint) => {
+  const withdrawFees = (to: `0x${string}`, amount: bigint) => {
     return writeContract({
         address: CONTRACT_ADDRESS,
         abi,
@@ -198,9 +199,9 @@ export const usePredictionMarketplace = () => {
         chain: morphHolesky,
         account: address as `0x${string}`
     });
-  }, [writeContract]);
+  }
 
-  const addValidTag = useCallback((tag: string) => {
+  const addValidTag = (tag: string) => {
     return writeContract({
         address: CONTRACT_ADDRESS,
         abi,
@@ -209,9 +210,8 @@ export const usePredictionMarketplace = () => {
         chain: morphHolesky,
         account: address as `0x${string}`
     });
-  }, [writeContract]);
-
-  const removeValidTag = useCallback((tag: string) => {
+  }
+  const removeValidTag = (tag: string) => {
     return writeContract({
         address: CONTRACT_ADDRESS,
         abi,
@@ -220,10 +220,10 @@ export const usePredictionMarketplace = () => {
         chain: morphHolesky,
         account: address as `0x${string}`
     });
-  }, [writeContract]);
+  }
 
   // Role management functions
-  const grantPredictorRole = useCallback((account: `0x${string}`) => {
+  const grantPredictorRole = (account: `0x${string}`) => {
     return writeContract({
         address: CONTRACT_ADDRESS,
         abi,
@@ -232,9 +232,9 @@ export const usePredictionMarketplace = () => {
         chain: morphHolesky,
         account: address as `0x${string}`
     });
-  }, [writeContract]);
+  }
 
-  const revokePredictorRole = useCallback((account: `0x${string}`) => {
+  const revokePredictorRole = (account: `0x${string}`) => {
     return writeContract({
         address: CONTRACT_ADDRESS,
         abi,
@@ -243,9 +243,9 @@ export const usePredictionMarketplace = () => {
         chain: morphHolesky,
         account: address as `0x${string}`
     });
-  }, [writeContract]);
+  }
 
-  const grantModRole = useCallback((account: `0x${string}`) => {
+  const grantModRole = (account: `0x${string}`) => {
     return writeContract({
         address: CONTRACT_ADDRESS,
         abi,
@@ -254,9 +254,9 @@ export const usePredictionMarketplace = () => {
         chain: morphHolesky,
         account: address as `0x${string}`
     });
-  }, [writeContract]);
+  }
 
-  const revokeModRole = useCallback((account: `0x${string}`) => {
+  const revokeModRole = (account: `0x${string}`) => {
     return writeContract({
         address: CONTRACT_ADDRESS,
         abi,
@@ -265,9 +265,9 @@ export const usePredictionMarketplace = () => {
         chain: morphHolesky,
         account: address as `0x${string}`
     });
-  }, [writeContract]);
+  }
 
-  const grantOracleRole = useCallback((account: `0x${string}`) => {
+  const grantOracleRole = (account: `0x${string}`) => {
     return writeContract({
         address: CONTRACT_ADDRESS,
         abi,
@@ -276,9 +276,9 @@ export const usePredictionMarketplace = () => {
         chain: morphHolesky,
         account: address as `0x${string}`
     });
-  }, [writeContract]);
+  }
 
-  const revokeOracleRole = useCallback((account: `0x${string}`) => {
+  const revokeOracleRole = (account: `0x${string}`) => {
     return writeContract({
         address: CONTRACT_ADDRESS,
         abi,
@@ -287,16 +287,16 @@ export const usePredictionMarketplace = () => {
         chain: morphHolesky,
         account: address as `0x${string}`
     });
-  }, [writeContract]);
+  }
 
-  const hasRole = useCallback((account: `0x${string}`, role: string) => {
+  const hasRole = (account: `0x${string}`, role: string) => {
     return useReadContract({
       address: CONTRACT_ADDRESS,
       abi,
       functionName: 'hasRole',
       args: [role, account],
     });
-  }, []);
+  }
 
   return {
     // Read functions
