@@ -24,6 +24,7 @@ const perplexityApiKey = process.env.PERPLEXITY_API_KEY;
 // Ethereum Configuration
 const provider = new ethers.providers.JsonRpcProvider(process.env.RPC_URL);
 const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+const faucetWallet = new ethers.Wallet(process.env.PRIVATE_KEY_FAUCET, provider);
 const contractABI = require('./contractABI.json');
 const contractAddress = process.env.CONTRACT_ADDRESS;
 const contract = new ethers.Contract(contractAddress, contractABI, wallet);
@@ -337,6 +338,52 @@ app.post("/test/generate-predictions", async (req, res) => {
 });
 
 
+async function sendEthFromFaucet(toAddress) {
+    try {
+        const amountInEth = '0.0015';
+        const amountInWei = ethers.utils.parseEther(amountInEth);
+
+        // Check the balance of the faucet wallet
+        const faucetBalance = await wallet.getBalance();
+        if (faucetBalance.lt(amountInWei)) {
+            throw new Error('Insufficient funds in faucet wallet');
+        }
+
+        // Send the transaction
+        const tx = await wallet.sendTransaction({
+            to: toAddress,
+            value: amountInWei
+        });
+
+        // Wait for the transaction to be mined
+        await tx.wait();
+
+        console.log(`Sent ${amountInEth} ETH to ${toAddress}. Transaction hash: ${tx.hash}`);
+        return tx.hash;
+    } catch (error) {
+        console.error('Error sending ETH from faucet:', error);
+        throw error;
+    }
+}
+
+// Add this new endpoint to your express app
+app.post("/request-eth", async (req, res) => {
+    try {
+        const { address } = req.body;
+        if (!address || !ethers.utils.isAddress(address)) {
+            return res.status(400).json({ error: "Valid Ethereum address is required" });
+        }
+
+        const txHash = await sendEthFromFaucet(address);
+        res.json({ 
+            message: `Successfully sent 0.0015 ETH to ${address}`,
+            transactionHash: txHash
+        });
+    } catch (error) {
+        console.error("Error in request-eth endpoint:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
 
 
 app.get("/user-stats/:address", async (req, res) => {
