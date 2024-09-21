@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, BarChart2, User, Menu } from 'lucide-react';
+import { Home, BarChart2, User, Menu, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DynamicWidget } from '@dynamic-labs/sdk-react-core';
@@ -9,17 +9,6 @@ const NavBar = ({ isMobile }) => {
   const [showTutorial, setShowTutorial] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const router = useRouter();
-
-  const [darkmode, setDarkmode] = useState(true);
-  
-  useEffect(() => {
-    document.body.classList.add('dark');
-  }, []);
-
-  const toggleDarkMode = () => {
-    document.body.classList.toggle('dark');
-    setDarkmode(!darkmode);
-  };
 
   useEffect(() => {
     const hasSeenTutorial = localStorage.getItem('hasSeenTutorial');
@@ -36,15 +25,12 @@ const NavBar = ({ isMobile }) => {
   const handleNavigation = (route) => {
     setActiveTab(route);
     if (route === 'profile') {
-      router.push('/admin/profile');
-    } 
-    else if (route === 'predict'){
+      router.push('/hub/profile');
+    } else if (route === 'predict') {
       router.push('/hub/dashboard');
-    }
-    else if (route === 'leaders'){
-      console.log('yet to create');
-    }
-    else {
+    } else if (route === 'leaders') {
+      router.push('/hub/leaders');
+    } else {
       router.push(`/${route}`);
     }
     setShowMobileMenu(false);
@@ -56,56 +42,53 @@ const NavBar = ({ isMobile }) => {
     { icon: <User size={20} />, label: 'Profile', route: 'profile' },
   ];
 
-  const TopMobileNav = () => (
-    <motion.div
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className="fixed top-0 left-0 right-0 bg-white/10 backdrop-blur-xl p-2 shadow-lg dark:bg-[#0b14374d] z-50"
-    >
-      <div className="flex justify-between items-center">
-        <span className="text-white font-bold text-xl"></span>
-        <div className="flex items-center space-x-2">
-          <DynamicWidget />
-          <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="text-white">
-            <Menu size={24} />
-          </button>
-        </div>
-      </div>
-    </motion.div>
+  const NavContent = () => (
+    <div className="flex items-center space-x-4">
+      {navItems.map((item) => (
+        <NavItem
+          key={item.route}
+          icon={item.icon}
+          label={item.label}
+          isActive={activeTab === item.route}
+          onClick={() => handleNavigation(item.route)}
+          isMobile={isMobile}
+        />
+      ))}
+    </div>
   );
 
   return (
     <>
-      {isMobile && <TopMobileNav />}
-      <motion.nav 
-        initial={isMobile ? { y: 100 } : { y: -100 }}
+      <motion.nav
+        initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className={`
-          ${isMobile ? 'fixed bottom-4 left-4 right-4' : 'sticky top-0 left-0 right-0'}
-          bg-white/10 backdrop-blur-xl rounded-2xl p-2 shadow-lg dark:bg-[#0b14374d] z-40
-        `}
+        className="fixed top-0 left-0 right-0 bg-white/10 backdrop-blur-xl p-2 shadow-lg dark:bg-[#0b14374d] z-50"
       >
-        <div className={`flex ${isMobile ? 'justify-around' : 'justify-between'} items-center`}>
-          {!isMobile && (
-            <span className="text-white font-bold text-xl">#Predict.AI</span>
-          )}
-          <div className={`flex ${isMobile ? 'justify-around w-full' : 'space-x-4'}`}>
-            {navItems.map((item) => (
-              <NavItem
-                key={item.route}
-                icon={item.icon}
-                label={item.label}
-                isActive={activeTab === item.route}
-                onClick={() => handleNavigation(item.route)}
-                isMobile={isMobile}
-              />
-            ))}
+        <div className="flex justify-between items-center">
+          <span className="text-white font-bold text-xl">#Predict.AI</span>
+          <div className="flex items-center space-x-2">
+            {!isMobile && <NavContent />}
+            <DynamicWidget />
+            {isMobile && (
+              <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="text-white p-2">
+                {showMobileMenu ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            )}
           </div>
-          {!isMobile && <DynamicWidget />}
         </div>
       </motion.nav>
+
+      {isMobile && (
+        <motion.nav
+          initial={{ y: 100 }}
+          animate={{ y: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+          className="fixed bottom-4 left-4 right-4 bg-white/10 backdrop-blur-xl rounded-2xl p-2 shadow-lg dark:bg-[#0b14374d] z-40"
+        >
+          <NavContent />
+        </motion.nav>
+      )}
 
       <AnimatePresence>
         {showMobileMenu && (
@@ -124,7 +107,7 @@ const NavBar = ({ isMobile }) => {
               className="absolute right-0 top-0 bottom-0 w-64 bg-white dark:bg-navy-800 p-4"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex flex-col space-y-4">
+              <div className="flex flex-col space-y-4 mt-16">
                 {navItems.map((item) => (
                   <button
                     key={item.route}

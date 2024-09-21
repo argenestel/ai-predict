@@ -49,83 +49,55 @@ async function answerQuestion(
 	return await processWithRedPillAI(prompt, apiKey);
 }
 
-async function generatePredictions(data: string, apiKey: string): Promise<string[]> {
-	const prompt = `Based on the following prediction market data, generate 5 new, creative prediction questions that are related to the themes present in the data but not exact duplicates. Each question should be specific, measurable, and have a clear timeframe. The Current Year is 2024 I will Provide more Date specific Info Always create Farther  then the Current Time Also Output in Json Format Given as .{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Create Prediction Parameters",
-  "type": "object",
-  "properties": {
-    "description": {
-      "type": "string",
-      "description": "A detailed description of the prediction"
-    },
-    "duration": {
-      "type": "integer",
-      "description": "The duration of the prediction in seconds",
-      "minimum": 1
-    },
-    "minVotes": {
-      "type": "integer",
-      "description": "The minimum number of votes required",
-      "minimum": 1
-    },
-    "maxVotes": {
-      "type": "integer",
-      "description": "The maximum number of votes allowed",
-      "minimum": 1
-    },
-    "predictionType": {
-      "type": "integer",
-      "enum": [0, 1, 2],
-      "description": "The type of prediction (0: Binary, 1: Multiple Choice, 2: Range)"
-    },
-    "optionsCount": {
-      "type": "integer",
-      "description": "The number of options for the prediction",
-      "minimum": 2,
-      "maximum": 10
-    },
-    "tags": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "description": "An array of tags associated with the prediction"
-    }
-  },
-  "required": [
-    "description",
-    "duration",
-    "minVotes",
-    "maxVotes",
-    "predictionType",
-    "optionsCount",
-    "tags"
-  ],
-  "additionalProperties": false
-}
-To create 
-
-const predictionParams = {
-  description: "Will it rain tomorrow in New York City?",
-  duration: 86400, // 24 hours in seconds
-  minVotes: 10,
-  maxVotes: 1000,
-  predictionType: 0, // Binary (Yes/No)
-  optionsCount: 2,
-  tags: ["weather", "NYC", "rain"]
-};
-
-
-Here's the data:
-
-${data}
-
-New Prediction Questions:`;
-
+async function formatGeneratedPredictions(predictions: string[], apiKey: string): Promise<string> {
+	const prompt = `Format the following predictions into a valid JSON array, ensuring each prediction object has the correct structure with "description", "duration", "minVotes", "maxVotes", "predictionType", "optionsCount", and "tags" fields. Here are the predictions:
+  
+  ${predictions.join('\n')}
+  
+  Please output only the formatted JSON array, without any additional text or explanations.`;
+  
+	const formattedJson = await processWithRedPillAI(prompt, apiKey);
+	
+	// Ensure the result is valid JSON
+	try {
+	  JSON.parse(formattedJson);
+	  return formattedJson;
+	} catch (error) {
+	  console.error("Error parsing formatted JSON:", error);
+	  throw new Error("Failed to format predictions into valid JSON");
+	}
+  }
+  
+  async function generatePredictions(data: string, apiKey: string): Promise<string> {
+	const prompt = `Based on the following prediction market data, generate 3 new, creative prediction questions that are related to the themes present in the data but not exact duplicates. Each question should be specific, measurable, and have a clear timeframe. The Current Year is 2024. Always create predictions further than the current time. Output in the format given as an example.
+  
+  Example format:
+  {
+	"description": "Will the European Central Bank officially launch the digital euro by the end of 2025?",
+	"duration": 63072000,
+	"minVotes": 1,
+	"maxVotes": 1000,
+	"predictionType": 0,
+	"optionsCount": 2,
+	"tags": ["finance", "CBDC", "Euro", "regulation"]
+  }
+  
+  Strictly follow the example and always have minVotes as 1. Create near recent predictions. Don't include any comments or extra text, just provide well-formatted JSON objects.
+  
+  Here's the data:
+  
+  ${data}
+  
+  New Prediction Questions:`;
+  
 	const result = await processWithRedPillAI(prompt, apiKey);
-	return result.split('\n').filter(line => line.trim() !== '').map(line => line.replace(/^\d+\.\s*/, ''));
-}
+	const predictions = result.split('\n').filter(line => line.trim() !== '');
+	
+	// Format the generated predictions into proper JSON
+	const formattedPredictions = await formatGeneratedPredictions(predictions, apiKey);
+	
+	return formattedPredictions;
+  }
 
 function getApiKey(req: Request): string {
 	const secrets = req.secret || {};
