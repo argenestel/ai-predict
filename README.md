@@ -9,19 +9,21 @@ Setup
 
 Clone the repository
 Install dependencies:
-Copynpm install
+npm install
 
 Create a .env file in the root directory with the following variables:
-CopyPORT=4000
+
+```
+PORT=4000
 MORPH_CHAIN_RPC_URL=https://rpc.morpheus.blockchain.binance.com
 PRIVATE_KEY=your_private_key
 PRIVATE_KEY_FAUCET=your_faucet_private_key
 CONTRACT_ADDRESS=your_contract_address
 OPENAI_API_KEY=your_openai_api_key
 PERPLEXITY_API_KEY=your_perplexity_api_key
-
+```
 Start the server:
-Copynpm start
+npm start
 
 
 API Endpoints
